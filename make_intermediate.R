@@ -10,6 +10,7 @@ library(dplyr)
 
 # file loading
 readSourceData <- function(files) {
+    print(files)
     ret_data = c()
     for (f in files) {
         file <- file(paste(DATASET_LOCATION, "en_US", f, sep='/'), open="rb")
@@ -96,30 +97,61 @@ tokenize <- function(corpus, ngrams) {
 }
 
 
-processTwitter <- function() {
-    dataFile <- 'en_US.twitter'
-    f_source = sprintf("%s.%s", dataFile, "txt")
-    f_sample = sprintf("./intermediate_data/sample_%s.Rda", dataFile)
-    f_corpus = sprintf("./intermediate_data/corpus_%s.Rda", dataFile)
-    f_dtm = sprintf("./intermediate_data/dtm_%s.Rda", dataFile)
+processFiles <- function(files, ngrams=2, sample.per=0.1) {
+    dataFile <- paste(files, collapse = '-')
+    # print(sprintf("Building sample for %s with %s-grams and %s sampling rate.", dataFile, ngrams, sample.per))
+    # return()
+    sourceFiles = lapply(files, FUN = function(x) paste(x, 'txt', sep='.'))
+    f_sample = sprintf("./intermediate_data/sample_%s_%s-grams_%s-samp.Rds", dataFile, ngrams, sample.per)
+    f_corpus = sprintf("./intermediate_data/corpus_%s_%s-grams_%s-samp.Rds", dataFile, ngrams, sample.per)
+    f_dtm = sprintf("./intermediate_data/dtm_%s_%s-grams_%s-samp.Rds", dataFile, ngrams, sample.per)
     if (file.exists(f_dtm)) {
         # dtm <- readRDS(f_dtm)
         print(sprintf("DTM already exists: %s", f_dtm))
     } else {
         if (file.exists(f_corpus)) {
+            print(sprintf("Loading corpus: %s", f_corpus))
             corpus <- readRDS(f_corpus)
         } else {
             if(file.exists(f_sample)) {
+                print(sprintf("Loading sample: %s", f_corpus))
                 data <- readRDS(f_sample)
             } else {
-                data_twitter <- readSourceData(c(f_source))
-                data <- makeSample(data_twitter, samplePercent = 1); rm(data_twitter)
+                print(sprintf("Building sample for %s with %s-grams and %s sampling rate.", dataFile, ngrams, sample.per))
+                data_twitter <- readSourceData(sourceFiles)
+                data <- makeSample(data_twitter, samplePercent = sample.per); rm(data_twitter)
+                print(sprintf("Sample built. Saving to %s", f_sample))
                 saveRDS(data, f_sample)
             }
+            print(sprintf("Building corpus for %s with %s-grams and %s sampling rate.", dataFile, ngrams, sample.per))
             corpus <- makeCorpus(data); rm(data)
+            print(sprintf("Corpus built. Saving to %s", f_corpus))
             saveRDS(corpus, f_corpus)
         }
-        dtm <- tokenize(corpus, 2); rm(corpus)
+        dtm <- tokenize(corpus, ngrams); rm(corpus)
+        print(sprintf("DTM built. Saving to %s", f_dtm))
         saveRDS(dtm, f_dtm)
     }
+}
+
+build234 <- function(sample.per = 0.2) {
+    print('Short 2')
+    processFiles(c('en_US.twitter'), ngrams=2, sample.per=sample.per) # short
+    print('Short 3')
+    processFiles(c('en_US.twitter'), ngrams=3, sample.per=sample.per) # short
+    print('Twitter 4')
+    processFiles(c('en_US.twitter'), ngrams=4, sample.per=sample.per) # short
+    print('All 2')
+    processFiles(c('en_US.blogs', 'en_US.news', 'en_US.twitter'), ngrams=2, sample.per=sample.per) # all
+    print('All 3')
+    processFiles(c('en_US.blogs', 'en_US.news', 'en_US.twitter'), ngrams=3, sample.per=sample.per) # all
+    print('All 4')
+    processFiles(c('en_US.blogs', 'en_US.news', 'en_US.twitter'), ngrams=4, sample.per=sample.per) # all
+    print('Long 2')
+    processFiles(c('en_US.blogs', 'en_US.news'), ngrams=2, sample.per=sample.per) # long
+    print('Long 3')
+    processFiles(c('en_US.blogs', 'en_US.news'), ngrams=3, sample.per=sample.per) # long
+    print('Long 4')
+    processFiles(c('en_US.blogs', 'en_US.news'), ngrams=4, sample.per=sample.per) # long
+    print('done.')
 }
